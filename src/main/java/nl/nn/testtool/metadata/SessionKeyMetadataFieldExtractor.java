@@ -1,5 +1,5 @@
 /*
-   Copyright 2020, 2022-2024 WeAreFrank!, 2018 Nationale-Nederlanden
+   Copyright 2020, 2022-2025 WeAreFrank!, 2018 Nationale-Nederlanden
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -45,29 +45,27 @@ public class SessionKeyMetadataFieldExtractor extends
 	}
 
 	public Object extractMetadata(Report report) {
-		String value = null;
-		Iterator iterator = report.getCheckpoints().iterator();
-		while (value == null && iterator.hasNext()) {
-			Checkpoint checkpoint = (Checkpoint) iterator.next();
-			String checkpointName = checkpoint.getName();
-			if (checkpointName.startsWith("SessionKey ")) {
-				String sessionKeyName = checkpointName.substring("SessionKey "
-						.length());
-				if (sessionKeyName.equals(sessionKey)) {
-					value = checkpoint.getMessage();
-					if((value != null) && (pattern != null)) {
-						Matcher matcher = pattern.matcher(value);
-						if (matcher.find()) {
-							value = matcher.group(matcher.groupCount());
-						}
-					}
-				}
-			}
+		return report.getCheckpoints().stream()
+			.filter(this::isRelevantCheckpoint)
+			.map(this::extractValueFromCheckpoint)
+			.filter(value -> value != null)
+			.findFirst()
+			.orElse(null);
+	}
+	
+	private boolean isRelevantCheckpoint(Checkpoint checkpoint) {
+		String checkpointName = checkpoint.getName();
+		return checkpointName.startsWith("SessionKey ") 
+			   && checkpointName.substring("SessionKey ".length()).equals(sessionKey);
+	}
+	
+	private String extractValueFromCheckpoint(Checkpoint checkpoint) {
+		String message = checkpoint.getMessage();
+		if (message == null || pattern == null) {
+			return message;
 		}
-		if (value == null) {
-			value = defaultValue;
-		}
-		return value;
+		Matcher matcher = pattern.matcher(message);
+		return matcher.find() ? matcher.group(matcher.groupCount()) : null;
 	}
 
 }
